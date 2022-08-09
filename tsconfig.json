@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    // Default
+    "target": "es2020",
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "strict": true,
+    "skipLibCheck": true,
+    // Added
+    "module": "ESNext",
+    "resolveJsonModule": true,
+    "declaration": true,
+    "declarationDir": "types",
+    "sourceMap": true,
+    "outDir": "dist",
+    "moduleResolution": "node",
+    "allowSyntheticDefaultImports": true
+  }
+}
