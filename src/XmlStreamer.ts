@@ -63,7 +63,65 @@ type StateName = "body" | "attributes" | "attribute" | "end";
 
 // TODO type the args
 function trans(event: EventName, state: StateName, ...args: any[]) {
-  return transition(event, state, ...args);
+  return transition(
+    event,
+    state,
+    reduce((ctx, event) => {
+      console.log(
+        `transitioned to ${state}, raw stack was ${
+          ctx.rawStack
+        }, event is ${JSON.stringify(event)}`
+      );
+      ctx.rawStack.push(state);
+      return ctx;
+    }),
+    ...args
+  );
+}
+
+function startDocument() {
+  return { target: "body" };
+}
+
+function startElement() {
+  return { target: "attributes" };
+}
+
+function escapeAttributes() {
+  return { target: "body" };
+}
+
+function escapeAttribute() {
+  return { target: "attributes" };
+}
+
+function startAttribute() {
+  return { target: "attribute" };
+}
+
+function escapeDocument() {
+  return { target: "end" };
+}
+
+function escapeElement() {
+  return { target: "body" };
+}
+
+function writeText() {
+  return {};
+}
+
+function generateState(
+  stateDefinition: Record<EventName, Function | Function[]>
+) {
+  const transitions = Object.entries(stateDefinition).map(
+    ([event, functions]) => {
+      const funcs = typeof functions === "function" ? [functions] : functions;
+      for (const f of funcs) {
+        f();
+      }
+    }
+  );
 }
 
 type StartEvent = {
@@ -103,6 +161,29 @@ const xmlFragments = {
   endElement: (name: string) => `</${name}>`,
   endSelfClosing: "/>",
 } as const;
+
+// const v = {
+//   element: {
+//     enterFragment: (name: string) => `<${name}`,
+//     leaveFragment: (name: string) => `</${name}>`,
+//   },
+//   attributes: {
+//     enterFragment: "",
+//     leaveFragment: ">",
+//   },
+//   attribute: {
+//     enterFragment: (name: string) => ` ${name}="`,
+//     leaveFragment: '"',
+//   },
+//   PI: {
+//     enterFragment: (name: string) => `<?${name}`,
+//     leaveFragment: "?>",
+//   },
+//   body: {
+//     enterFragment: "",
+//     leaveFragment: "",
+//   },
+// };
 
 type FragmentName = keyof typeof xmlFragments;
 
@@ -172,6 +253,44 @@ export function createXmlMachine(writer: Writer) {
     }
     return ctx;
   }
+
+  return createMachine<{}, Context>(
+    {
+      darkness: generateState({
+        startDocument: startDocument(),
+        startElement: startElement(),
+      }),
+      attributes: generateState({
+        text: [escapeAttributes(), writeText()],
+        startAttribute: startAttribute(),
+        endAttributes: escapeAttributes(),
+        endDocument: escapeDocument(),
+        endElement: escapeElement(),
+        startElement: [escapeAttributes(), startElement()],
+      }),
+      attribute: generateState({
+        text: writeText(),
+        endAttribute: escapeAttribute(),
+        endAttributes: escapeAttributes(),
+        endDocument: escapeDocument(),
+        endElement: escapeElement(),
+        startElement: [escapeAttributes(), startElement()],
+      }),
+      body: generateState({
+        text: writeText(),
+        endDocument: escapeDocument(),
+        endElement: escapeElement(),
+        startElement: startElement(),
+      }),
+      end: state(),
+    },
+    () => ({
+      containingChildrenLastDepth: -1,
+      stack: [],
+      indentString: "  ",
+      rawStack: [],
+    })
+  );
 
   const darknessState = state(
     trans(
