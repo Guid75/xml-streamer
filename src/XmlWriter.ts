@@ -7,10 +7,10 @@ type ConstructorOptions = {
   callback?: Writer;
 };
 
-type SimpleRelay = () => XmlStreamer;
-type NameRelay = (name: string) => XmlStreamer;
+type SimpleRelay = () => XmlWriter;
+type NameRelay = (name: string) => XmlWriter;
 
-export class XmlStreamer {
+export class XmlWriter {
   #fsm;
   #output = "";
 

@@ -1,18 +1,18 @@
 # xml-streamer
 
-A fast XML writer
+A fast XML writer natively written in typescript
 
 ## Installation
 
 ```sh
-npm install -S xmlstreamer
+npm install -S xml-writer-ts
 ```
 
 ## Usage
 
 ```typescript
 
-import Streamer from "xmlstreamer"
+import { XmlWriter } from "xml-writer-ts"
 
 // TODO
 ```

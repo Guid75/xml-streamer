@@ -1,11 +1,12 @@
 {
-  "name": "xmlstreamer",
-  "version": "0.0.1",
-  "description": "A fast XML writer",
+  "name": "xml-writer-ts",
+  "version": "0.0.2",
+  "description": "A typescript XML writer",
   "main": "dist/cjs/index.cjs",
   "module": "dist/esm/index.mjs",
   "types": "dist/index.d.ts",
   "type": "module",
+  "files": ["dist"],
   "scripts": {
     "test": "npm run test:lint && npm run test:unit",
     "test:lint": "eslint \"src/**/*.ts\"",
