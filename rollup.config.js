@@ -7,7 +7,7 @@ const packageJson = require("./package.json");
 
 export default [
   {
-    input: "src/XmlStreamer.ts",
+    input: "src/XmlWriter.ts",
     output: [
       {
         file: packageJson.main,
