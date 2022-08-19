@@ -2,6 +2,8 @@
 
 Yet another XML writer but this time written in typescript.
 
+**WARNING: this package is still in early alpha stage, some features are not yet implemented**
+
 ## Installation
 
 ```sh
