@@ -20,6 +20,8 @@ export class XmlWriter {
   endAttributes: SimpleRelay;
   startElement: NameRelay;
   endElement: SimpleRelay;
+  startComment: SimpleRelay;
+  endComment: SimpleRelay;
 
   constructor({ indentation, callback }: ConstructorOptions = {}) {
     const defaultCallback = (str: string) => {
@@ -38,6 +40,8 @@ export class XmlWriter {
     this.endAttributes = this.#fsmRelay("endAttributes");
     this.startElement = this.#fsmRelayName("startElement");
     this.endElement = this.#fsmRelay("endElement");
+    this.startComment = this.#fsmRelay("startComment");
+    this.endComment = this.#fsmRelay("endComment");
   }
 
   #fsmRelay(tagName: string): SimpleRelay {
@@ -70,6 +74,10 @@ export class XmlWriter {
 
   writeAttribute(name: string, content: string) {
     return this.startAttribute(name).text(content).endAttribute();
+  }
+
+  writeComment(content: string) {
+    return this.startComment().text(content).endComment();
   }
 
   toString(): string {

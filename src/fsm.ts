@@ -45,9 +45,11 @@ type EventName =
   | "endAttributes"
   | "startAttribute"
   | "endAttribute"
+  | "startComment"
+  | "endComment"
   | "text";
 
-type StateName = "body" | "attributes" | "attribute" | "end";
+type StateName = "body" | "attributes" | "attribute" | "comment" | "end";
 
 function trans<E>(
   event: EventName,
@@ -94,6 +96,8 @@ const xmlFragments = {
   startElement: nameValidator((name) => `<${name}`),
   endElement: nameValidator((name) => `</${name}>`),
   endSelfClosing: "/>",
+  startComment: "<!--",
+  endComment: "-->",
 } as const;
 
 type FragmentName = keyof typeof xmlFragments;
@@ -188,6 +192,14 @@ export function createFsm(writer: Writer, indentation?: boolean | string) {
       "startElement",
       "attributes",
       reduce((ctx, { name }: NameEvent) => startElement(name, ctx))
+    ),
+    trans(
+      "startComment",
+      "comment",
+      action((ctx) => {
+        indent(ctx);
+        writeXmlFragment("startComment");
+      })
     )
   );
 
@@ -223,6 +235,15 @@ export function createFsm(writer: Writer, indentation?: boolean | string) {
       reduce((ctx, { name }: NameEvent) => {
         writeXmlFragment("endAttributes");
         return startElement(name, ctx);
+      })
+    ),
+    trans(
+      "startComment",
+      "comment",
+      action((ctx) => {
+        writeXmlFragment("endAttributes");
+        indent(ctx);
+        writeXmlFragment("startComment");
       })
     )
   );
@@ -268,6 +289,31 @@ export function createFsm(writer: Writer, indentation?: boolean | string) {
         writeXmlFragments("endAttribute", "endAttributes");
         return startElement(name, ctx);
       })
+    ),
+    trans(
+      "startComment",
+      "comment",
+      action((ctx) => {
+        writeXmlFragments("endAttribute", "endAttributes");
+        indent(ctx);
+        writeXmlFragment("startComment");
+      })
+    )
+  );
+
+  const commentState = state(
+    trans(
+      "endComment",
+      "body",
+      action(() => writeXmlFragment("endComment"))
+    ),
+    trans(
+      "text",
+      "comment",
+      action((__, { content }: ContentEvent) =>
+        // TODO escape content?
+        writeXmlFragment("text", content)
+      )
     )
   );
 
@@ -298,6 +344,14 @@ export function createFsm(writer: Writer, indentation?: boolean | string) {
       "startElement",
       "attributes",
       reduce((ctx, { name }: NameEvent) => startElement(name, ctx))
+    ),
+    trans(
+      "startComment",
+      "comment",
+      action((ctx) => {
+        indent(ctx);
+        writeXmlFragment("startComment");
+      })
     )
   );
 
@@ -312,6 +366,7 @@ export function createFsm(writer: Writer, indentation?: boolean | string) {
       darkness: darknessState,
       attributes: attributesState,
       attribute: attributeState,
+      comment: commentState,
       body: bodyState,
       end: state(),
     },

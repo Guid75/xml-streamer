@@ -15,23 +15,52 @@ npm install -S xml-writer-ts
 ```javascript
 import { XmlWriter } from "xml-writer-ts"
 
-const writer = new XmlWriter();
+const writer = new XmlWriter({ indentation: "  " })
 writer
   .startDocument("1.0", "UTF-9", true)
-  .startElement("foo")
+  .startElement("coucou")
   .startAttribute("attr")
   .text("value")
-  .startElement("bar")
-  .endDocument();
+  .startElement("cici")
+  .writeComment("Hello world!")
+  .startElement("caca")
+
 console.log(writer.toString())
 ```
 
-will print
+will print:
 
 ```xml
-<?xml version="1.0" encoding="UTF-9" standalone="yes"?><foo attr="value"><bar/></foo>
+<?xml version="1.0" encoding="UTF-9" standalone="yes"?>
+<coucou attr="value">
+  <cici>
+    <!--Hello world!-->
+    <caca/>
+  </cici>
+</coucou>
 ```
 
 ## API
 
-TODO
+Implemented methods (Work In Progress):
+
+```typescript
+function startDocument(version?: string, encoding?: string, standalone?: boolean) {}
+function endDocument() {}
+
+function writeElement(name: string, content: string) {}
+function startElement(name: string) {}
+function endElement() {}
+
+function writeAttribute(name: string, content: string) {}
+function startAttribute(name: string) {}
+function endAttribute() {}
+
+function endAttributes() {}
+
+function writeComment(content: string) {}
+function startComment() {}
+function endComment() {}
+
+function text(content: string) {}
+```
