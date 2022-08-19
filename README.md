@@ -4,6 +4,8 @@ Yet another XML writer but this time written in typescript.
 
 **WARNING: this package is still in early alpha stage, some features are not yet implemented**
 
+![GitHub Workflow Status](https://img.shields.io/github/workflow/status/guid75/xml-writer/Node.js%20CI?label=tests)
+
 ## Installation
 
 ```sh
