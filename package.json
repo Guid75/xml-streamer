@@ -1,6 +1,6 @@
 {
   "name": "xml-writer-ts",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "description": "A typescript XML writer",
   "main": "dist/cjs/index.cjs",
   "module": "dist/esm/index.mjs",
@@ -15,7 +15,8 @@
     "test:unit": "npm run fsm > /dev/null 2>&1 && NODE_OPTIONS=\"--experimental-vm-modules --no-warnings\" jest",
     "build": "npm run fsm && rollup -c",
     "check-types": "tsc --noemit",
-    "fsm": "xstate typegen src/fsm.ts"
+    "fsm": "xstate typegen src/fsm.ts",
+    "version": "npx auto-changelog -p && git add CHANGELOG.md"
   },
   "repository": {
     "type": "git",
@@ -37,6 +38,7 @@
     "@typescript-eslint/eslint-plugin": "^5.32.0",
     "@typescript-eslint/parser": "^5.33.1",
     "@xstate/cli": "^0.3.2",
+    "auto-changelog": "^2.4.0",
     "dedent-js": "^1.0.1",
     "eslint": "^8.21.0",
     "eslint-config-prettier": "^8.5.0",
