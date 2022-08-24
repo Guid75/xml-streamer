@@ -43,7 +43,6 @@ export interface Typegen0 {
   eventsCausingGuards: {}
   eventsCausingDelays: {}
   matchesStates:
-    | 'cdata'
     | 'comment'
     | 'element'
     | 'element.attributes'

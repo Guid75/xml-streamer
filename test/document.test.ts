@@ -6,7 +6,6 @@ test('blabla', () => {
   const writer = new XmlWriter({ indentation: '  ' })
   writer
     .startDocument('1.0', 'UTF-9', true)
-    .writeCData('a root cdata content')
     .startElement('coucou')
     .startAttribute('attr')
     .text('value')
@@ -17,7 +16,6 @@ test('blabla', () => {
   expect(writer.toString()).toBe(
     dedent`
       <?xml version="1.0" encoding="UTF-9" standalone="yes"?>
-      <![CDATA[a root cdata content]]>
       <coucou attr="value">
         <cici>
           <!--Hello world!-->

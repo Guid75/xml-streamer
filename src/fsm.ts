@@ -145,7 +145,6 @@ export function createFsm(writer: Writer, indentation?: boolean | string) {
           on: {
             START_DOCUMENT: { actions: 'writeXmlDeclaration', target: 'root' },
             START_ELEMENT: 'element',
-            START_CDATA: 'cdata',
             START_COMMENT: 'comment',
           },
         },
@@ -153,7 +152,6 @@ export function createFsm(writer: Writer, indentation?: boolean | string) {
           on: {
             START_ELEMENT: 'element',
             START_COMMENT: 'comment',
-            START_CDATA: 'cdata',
             END_DOCUMENT: 'end',
           },
         },
@@ -162,7 +160,7 @@ export function createFsm(writer: Writer, indentation?: boolean | string) {
           entry: 'enterElement',
           exit: 'exitElement',
           on: {
-            START_ELEMENT: { target: 'element' },
+            START_ELEMENT: 'element',
             END_ELEMENT: 'element',
             END_DOCUMENT: 'end',
           },
@@ -221,13 +219,6 @@ export function createFsm(writer: Writer, indentation?: boolean | string) {
           on: {
             END_COMMENT: { actions: 'leaveComment', target: 'root' },
             TEXT: { actions: 'writeComment' },
-          },
-        },
-        cdata: {
-          entry: 'enterCData',
-          on: {
-            END_CDATA: { actions: 'leaveCData', target: 'root' },
-            TEXT: { actions: 'writeCData' },
           },
         },
         end: {
