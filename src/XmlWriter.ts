@@ -1,87 +1,89 @@
-import { interpret } from "robot3";
+import { interpret } from 'xstate'
 
-import { createFsm, Writer } from "./fsm";
+import { createFsm, Writer } from './fsm'
 
 type ConstructorOptions = {
-  indentation?: boolean | string;
-  callback?: Writer;
-};
-
-type SimpleRelay = () => XmlWriter;
-type NameRelay = (name: string) => XmlWriter;
+  indentation?: boolean | string
+  callback?: Writer
+}
 
 export class XmlWriter {
-  #fsm;
-  #output = "";
-
-  endDocument: SimpleRelay;
-  startAttribute: NameRelay;
-  endAttribute: SimpleRelay;
-  endAttributes: SimpleRelay;
-  startElement: NameRelay;
-  endElement: SimpleRelay;
-  startComment: SimpleRelay;
-  endComment: SimpleRelay;
+  #fsm
+  #output = ''
 
   constructor({ indentation, callback }: ConstructorOptions = {}) {
     const defaultCallback = (str: string) => {
-      this.#output += str;
-    };
+      this.#output += str
+    }
 
-    this.#fsm = interpret(
-      createFsm(callback ?? defaultCallback, indentation),
-      () => {
-        // do nothing
-      }
-    );
-    this.endDocument = this.#fsmRelay("endDocument");
-    this.startAttribute = this.#fsmRelayName("startAttribute");
-    this.endAttribute = this.#fsmRelay("endAttribute");
-    this.endAttributes = this.#fsmRelay("endAttributes");
-    this.startElement = this.#fsmRelayName("startElement");
-    this.endElement = this.#fsmRelay("endElement");
-    this.startComment = this.#fsmRelay("startComment");
-    this.endComment = this.#fsmRelay("endComment");
-  }
-
-  #fsmRelay(tagName: string): SimpleRelay {
-    return () => {
-      this.#fsm.send(tagName);
-      return this;
-    };
-  }
-
-  #fsmRelayName(tagName: string): NameRelay {
-    return (name: string) => {
-      this.#fsm.send({ type: tagName, name });
-      return this;
-    };
+    this.#fsm = interpret(createFsm(callback ?? defaultCallback, indentation))
+    this.#fsm.start()
   }
 
   startDocument(version?: string, encoding?: string, standalone?: boolean) {
-    this.#fsm.send({ type: "startDocument", version, encoding, standalone });
-    return this;
+    this.#fsm.send({ type: 'START_DOCUMENT', param: { version, encoding, standalone } })
+    return this
+  }
+
+  endDocument() {
+    this.#fsm.send({ type: 'END_DOCUMENT' })
+    return this
   }
 
   writeElement(name: string, content: string) {
-    return this.startElement(name).text(content).endElement();
+    return this.startElement(name).text(content).endElement()
+  }
+
+  startElement(name: string) {
+    this.#fsm.send({ type: 'START_ELEMENT', param: name })
+    return this
+  }
+
+  endElement() {
+    this.#fsm.send({ type: 'END_ELEMENT' })
+    return this
+  }
+
+  startAttribute(name: string) {
+    this.#fsm.send({ type: 'START_ATTRIBUTE', param: name })
+    return this
+  }
+
+  endAttribute() {
+    this.#fsm.send({ type: 'END_ATTRIBUTE' })
+    return this
   }
 
   text(content: string) {
-    this.#fsm.send({ type: "text", content });
-    return this;
+    this.#fsm.send({ type: 'TEXT', param: content })
+    return this
   }
 
   writeAttribute(name: string, content: string) {
-    return this.startAttribute(name).text(content).endAttribute();
+    return this.startAttribute(name).text(content).endAttribute()
+  }
+
+  endAttributes() {
+    this.#fsm.send({ type: 'END_ATTRIBUTES' })
+    return this
   }
 
   writeComment(content: string) {
-    return this.startComment().text(content).endComment();
+    return this.startComment().text(content).endComment()
+  }
+
+  startComment() {
+    this.#fsm.send({ type: 'START_COMMENT' })
+    return this
+  }
+
+  endComment() {
+    this.#fsm.send({ type: 'END_COMMENT' })
+    return this
   }
 
   toString(): string {
-    this.#fsm.send("endDocument");
-    return this.#output;
+    this.#fsm.send('END_DOCUMENT')
+    return this.#output
   }
 }

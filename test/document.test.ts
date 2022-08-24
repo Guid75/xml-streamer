@@ -1,17 +1,17 @@
-import dedent from "dedent-js";
+import dedent from 'dedent-js'
 
-import { XmlWriter } from "../src/XmlWriter";
+import { XmlWriter } from '../src/XmlWriter'
 
-test("blabla", () => {
-  const writer = new XmlWriter({ indentation: "  " });
+test('blabla', () => {
+  const writer = new XmlWriter({ indentation: '  ' })
   writer
-    .startDocument("1.0", "UTF-9", true)
-    .startElement("coucou")
-    .startAttribute("attr")
-    .text("value")
-    .startElement("cici")
-    .writeComment("Hello world!")
-    .startElement("caca");
+    .startDocument('1.0', 'UTF-9', true)
+    .startElement('coucou')
+    .startAttribute('attr')
+    .text('value')
+    .startElement('cici')
+    .writeComment('Hello world!')
+    .startElement('caca')
   expect(writer.toString()).toBe(
     dedent`
       <?xml version="1.0" encoding="UTF-9" standalone="yes"?>
@@ -21,6 +21,6 @@ test("blabla", () => {
           <caca/>
         </cici>
       </coucou>
-    `
-  );
-});
+    `,
+  )
+})

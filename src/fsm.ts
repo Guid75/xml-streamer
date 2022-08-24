@@ -1,380 +1,286 @@
-import {
-  createMachine,
-  reduce as robotReduce,
-  ReduceFunction,
-  action as robotAction,
-  Reducer,
-  Guard,
-  Action,
-  state,
-  transition,
-  ActionFunction,
-} from "robot3";
+import { createMachine } from 'xstate'
 
-export type Writer = (str: string) => void;
+export type Writer = (str: string) => void
 
 function escapeAttributeContent(content: string) {
   return content
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/"/g, "&quot;")
-    .replace(/\t/g, "&#x9;")
-    .replace(/\n/g, "&#xA;")
-    .replace(/\r/g, "&#xD;");
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/"/g, '&quot;')
+    .replace(/\t/g, '&#x9;')
+    .replace(/\n/g, '&#xA;')
+    .replace(/\r/g, '&#xD;')
 }
 
 function escapeTextContent(content: string) {
-  return content
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
+  return content.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 }
 
 type Context = {
-  indentString?: string;
-  containingChildrenLastDepth: number;
-  stack: string[];
-  rawStack: string[];
-};
-
-type EventName =
-  | "startDocument"
-  | "endDocument"
-  | "startElement"
-  | "endElement"
-  | "endAttributes"
-  | "startAttribute"
-  | "endAttribute"
-  | "startComment"
-  | "endComment"
-  | "text";
-
-type StateName = "body" | "attributes" | "attribute" | "comment" | "end";
-
-function trans<E>(
-  event: EventName,
-  state: StateName,
-  ...args: (Reducer<Context, E> | Guard<Context, E> | Action<Context, E>)[]
-) {
-  return transition(event, state, ...args);
+  indentString?: string
+  containingChildrenLastDepth: number
+  stack: string[]
+  rawStack: string[]
+  hasBody: boolean
 }
 
-type StartEvent = {
-  version: string;
-  encoding: string;
-  standalone: boolean;
-};
-
-type NameEvent = { name: string };
-
-type ContentEvent = { content: string };
-
-function reduce<E>(reduceFunction?: ReduceFunction<Context, E>) {
-  return robotReduce<Context, E>(reduceFunction);
+type DocumentDeclaration = {
+  version?: string
+  encoding?: string
+  standalone?: boolean
 }
 
-function action<E>(actionFunction?: ActionFunction<Context, E>) {
-  return robotAction<Context, E>(actionFunction);
-}
+type GenericEvent<T> = { type: T }
+type GenericParamEvent<T, TParam = string> = { type: T; param: TParam }
 
-const nameRegex = /[_:A-Za-z][-._:A-Za-z0-9]*/;
+type Event =
+  | GenericParamEvent<'START_DOCUMENT', DocumentDeclaration>
+  | GenericEvent<'END_DOCUMENT'>
+  | GenericParamEvent<'START_ELEMENT'>
+  | GenericEvent<'END_ELEMENT'>
+  | GenericEvent<'END_ATTRIBUTES'>
+  | GenericParamEvent<'START_ATTRIBUTE'>
+  | GenericEvent<'END_ATTRIBUTE'>
+  | GenericEvent<'START_COMMENT'>
+  | GenericEvent<'END_COMMENT'>
+  | GenericParamEvent<'TEXT'>
+
+const DEFAULT_INDENTATION = '    '
+
+const nameRegex = /[_:A-Za-z][-._:A-Za-z0-9]*/
 
 function nameValidator(transformer: (name: string) => string) {
   return (name: string) => {
-    if (!name.match(nameRegex)) throw Error("Invalid Parameter");
-    return transformer(name);
-  };
+    if (!name.match(nameRegex)) throw Error('Invalid Parameter')
+    return transformer(name)
+  }
 }
 
 const xmlFragments = {
-  startPI: nameValidator((name) => `<?${name}`),
-  endPI: "?>",
-  startAttribute: nameValidator((name) => ` ${name}="`),
-  endAttribute: '"',
-  endAttributes: ">",
+  PIStart: nameValidator((name) => `<?${name}`),
+  PIEnd: '?>',
+  attributeStart: nameValidator((name) => ` ${name}="`),
+  attributeEnd: '"',
+  attributesEnd: '>',
   text: (content: string) => content,
-  startElement: nameValidator((name) => `<${name}`),
-  endElement: nameValidator((name) => `</${name}>`),
-  endSelfClosing: "/>",
-  startComment: "<!--",
-  endComment: "-->",
-} as const;
+  elementStart: nameValidator((name) => `<${name}`),
+  elementEnd: nameValidator((name) => `</${name}>`),
+  selfClosingEnd: '/>',
+  commentStart: '<!--',
+  commentEnd: '-->',
+} as const
 
-type FragmentName = keyof typeof xmlFragments;
+type FragmentName = keyof typeof xmlFragments
 
 export function createFsm(writer: Writer, indentation?: boolean | string) {
   function writeXmlFragment(fragmentName: FragmentName, content?: string) {
-    const fragment = xmlFragments[fragmentName];
-    if (typeof fragment === "string") {
-      writer(fragment);
+    const fragment = xmlFragments[fragmentName]
+    if (typeof fragment === 'string') {
+      writer(fragment)
     } else {
-      writer(fragment(content || ""));
+      writer(fragment(content || ''))
     }
   }
 
-  function writeXmlFragments(
-    ...fragments: (FragmentName | [FragmentName, string?])[]
-  ) {
+  function writeXmlFragments(...fragments: (FragmentName | [FragmentName, string?])[]) {
     for (const fragment of fragments) {
-      if (typeof fragment === "string") {
-        writeXmlFragment(fragment);
+      if (typeof fragment === 'string') {
+        writeXmlFragment(fragment)
       } else {
-        writeXmlFragment(...fragment);
+        writeXmlFragment(...fragment)
       }
     }
   }
 
   function writeXmlAttribute(name: string, value: string) {
-    writeXmlFragments(
-      ["startAttribute", name],
-      ["text", value],
-      "endAttribute"
-    );
+    writeXmlFragments(['attributeStart', name], ['text', value], 'attributeEnd')
   }
 
-  function writeXmlDeclaration({ version, encoding, standalone }: StartEvent) {
-    writeXmlFragment("startPI", "xml");
-    writeXmlAttribute("version", typeof version == "string" ? version : "1.0");
-    if (typeof encoding == "string") {
-      writeXmlAttribute("encoding", encoding);
-    }
-    if (standalone) {
-      writeXmlAttribute("standalone", "yes");
-    }
-    writeXmlFragment("endPI");
+  function writeXmlDeclaration({ version, encoding, standalone }: DocumentDeclaration) {
+    writeXmlFragment('PIStart', 'xml')
+    writeXmlAttribute('version', typeof version == 'string' ? version : '1.0')
+    if (typeof encoding == 'string') writeXmlAttribute('encoding', encoding)
+    if (standalone) writeXmlAttribute('standalone', 'yes')
+    writeXmlFragment('PIEnd')
   }
 
   function indent({ indentString, stack }: Context) {
     if (indentString) {
-      writer("\n");
+      writer('\n')
       for (let i = 0; i < stack.length; i++) {
-        writer(indentString);
+        writer(indentString)
       }
     }
   }
-
-  function end(ctx: Context): Context {
-    while (ctx.stack.length) {
-      const name = ctx.stack.pop();
-      if (ctx.stack.length === ctx.containingChildrenLastDepth) {
-        indent(ctx);
-      }
-      ctx.containingChildrenLastDepth = ctx.stack.length - 1;
-      writeXmlFragment("endElement", name);
-    }
-    return ctx;
-  }
-
-  function startElement(name: string, ctx: Context): Context {
-    indent(ctx);
-    ctx.containingChildrenLastDepth = ctx.stack.length - 1;
-    ctx.stack.push(name);
-    writeXmlFragment("startElement", name);
-    return ctx;
-  }
-
-  function endSelfClosing(ctx: Context): Context {
-    writeXmlFragment("endSelfClosing");
-    ctx.stack.pop();
-    return ctx;
-  }
-
-  const darknessState = state(
-    trans(
-      "startDocument",
-      "body",
-      reduce((ctx: Context, event: StartEvent) => {
-        writeXmlDeclaration(event);
-        return ctx;
-      })
-    ),
-    trans(
-      "startElement",
-      "attributes",
-      reduce((ctx, { name }: NameEvent) => startElement(name, ctx))
-    ),
-    trans(
-      "startComment",
-      "comment",
-      action((ctx) => {
-        indent(ctx);
-        writeXmlFragment("startComment");
-      })
-    )
-  );
-
-  const attributesState = state(
-    trans(
-      "endAttributes",
-      "body",
-      action(() => writeXmlFragment("endAttributes"))
-    ),
-    trans(
-      "startAttribute",
-      "attribute",
-      action((__, { name }: NameEvent) =>
-        writeXmlFragment("startAttribute", name)
-      )
-    ),
-    trans(
-      "text",
-      "body",
-      action((__, { content }: ContentEvent) =>
-        writeXmlFragments("endAttributes", ["text", escapeTextContent(content)])
-      )
-    ),
-    trans("endElement", "body", reduce(endSelfClosing)),
-    trans(
-      "endDocument",
-      "end",
-      reduce((ctx) => end(endSelfClosing(ctx)))
-    ),
-    trans(
-      "startElement",
-      "attributes",
-      reduce((ctx, { name }: NameEvent) => {
-        writeXmlFragment("endAttributes");
-        return startElement(name, ctx);
-      })
-    ),
-    trans(
-      "startComment",
-      "comment",
-      action((ctx) => {
-        writeXmlFragment("endAttributes");
-        indent(ctx);
-        writeXmlFragment("startComment");
-      })
-    )
-  );
-
-  const attributeState = state(
-    trans(
-      "text",
-      "attribute",
-      action((__, { content }: ContentEvent) =>
-        writeXmlFragment("text", escapeAttributeContent(content))
-      )
-    ),
-    trans(
-      "endAttribute",
-      "attributes",
-      action(() => writeXmlFragment("endAttribute"))
-    ),
-    trans(
-      "endAttributes",
-      "body",
-      action(() => writeXmlFragments("endAttribute", "endAttributes"))
-    ),
-    trans(
-      "endDocument",
-      "end",
-      reduce((ctx) => {
-        writeXmlFragment("endAttribute");
-        return end(endSelfClosing(ctx));
-      })
-    ),
-    trans(
-      "endElement",
-      "body",
-      reduce((ctx) => {
-        writeXmlFragment("endAttribute");
-        return endSelfClosing(ctx);
-      })
-    ),
-    trans(
-      "startElement",
-      "attributes",
-      reduce((ctx, { name }: NameEvent) => {
-        writeXmlFragments("endAttribute", "endAttributes");
-        return startElement(name, ctx);
-      })
-    ),
-    trans(
-      "startComment",
-      "comment",
-      action((ctx) => {
-        writeXmlFragments("endAttribute", "endAttributes");
-        indent(ctx);
-        writeXmlFragment("startComment");
-      })
-    )
-  );
-
-  const commentState = state(
-    trans(
-      "endComment",
-      "body",
-      action(() => writeXmlFragment("endComment"))
-    ),
-    trans(
-      "text",
-      "comment",
-      action((__, { content }: ContentEvent) =>
-        // TODO escape content?
-        writeXmlFragment("text", content)
-      )
-    )
-  );
-
-  const bodyState = state(
-    trans(
-      "text",
-      "body",
-      action((__, { content }: ContentEvent) =>
-        writeXmlFragment("text", escapeTextContent(content))
-      )
-    ),
-    trans(
-      "endElement",
-      "body",
-      reduce((ctx) => {
-        if (ctx.stack.length === 0) return ctx;
-        const name = ctx.stack.pop();
-        if (ctx.stack.length === ctx.containingChildrenLastDepth) {
-          indent(ctx);
-        }
-        ctx.containingChildrenLastDepth = ctx.stack.length - 1;
-        writeXmlFragment("endElement", name);
-        return ctx;
-      })
-    ),
-    trans("endDocument", "end", reduce(end)),
-    trans(
-      "startElement",
-      "attributes",
-      reduce((ctx, { name }: NameEvent) => startElement(name, ctx))
-    ),
-    trans(
-      "startComment",
-      "comment",
-      action((ctx) => {
-        indent(ctx);
-        writeXmlFragment("startComment");
-      })
-    )
-  );
 
   function buildIndentString(): string | undefined {
     if (indentation) {
-      return typeof indentation === "string" ? indentation : "    ";
+      return typeof indentation === 'string' ? indentation : DEFAULT_INDENTATION
     }
   }
 
-  return createMachine<Record<string, unknown>, Context>(
+  return createMachine(
     {
-      darkness: darknessState,
-      attributes: attributesState,
-      attribute: attributeState,
-      comment: commentState,
-      body: bodyState,
-      end: state(),
+      predictableActionArguments: true,
+      tsTypes: {} as import('./fsm.typegen').Typegen0,
+      schema: {
+        context: {} as Context,
+        events: {} as Event,
+      },
+      initial: 'void',
+      context: {
+        containingChildrenLastDepth: -1,
+        stack: [],
+        indentString: buildIndentString(),
+        rawStack: [],
+        hasBody: false,
+      },
+      id: 'root',
+      states: {
+        void: {
+          on: {
+            START_DOCUMENT: { actions: 'writeXmlDeclaration', target: 'root' },
+            START_ELEMENT: 'element',
+            START_COMMENT: 'comment',
+          },
+        },
+        root: {
+          on: {
+            START_ELEMENT: 'element',
+            START_COMMENT: 'comment',
+            END_DOCUMENT: 'end',
+          },
+        },
+        element: {
+          id: 'element',
+          entry: 'enterElement',
+          exit: 'exitElement',
+          on: {
+            START_ELEMENT: { target: 'element' },
+            END_ELEMENT: 'element',
+            END_DOCUMENT: 'end',
+          },
+          initial: 'attributes',
+          states: {
+            attributes: {
+              initial: 'idle',
+              states: {
+                idle: {
+                  on: {
+                    START_ATTRIBUTE: 'attribute',
+                  },
+                },
+                attribute: {
+                  entry: 'enterAttribute',
+                  exit: 'exitAttribute',
+                  on: {
+                    END_ATTRIBUTE: 'idle',
+                    TEXT: { actions: 'writeAttributeText' },
+                  },
+                },
+              },
+              on: {
+                END_ATTRIBUTES: { actions: 'writeAttributesEnd', target: 'body' },
+                START_COMMENT: { actions: 'writeAttributesEnd', target: 'comment' },
+                TEXT: { actions: 'writeAttributesEnd', target: 'body' },
+              },
+            },
+            body: {
+              entry: 'enterBody',
+              on: {
+                TEXT: 'body',
+                START_COMMENT: 'comment',
+              },
+            },
+            comment: {
+              entry: 'enterComment',
+              on: {
+                END_COMMENT: { actions: 'leaveComment', target: 'body' },
+                TEXT: { actions: 'writeComment' },
+              },
+            },
+          },
+        },
+        comment: {
+          entry: 'enterComment',
+          on: {
+            END_COMMENT: { actions: 'leaveComment', target: 'root' },
+            TEXT: { actions: 'writeComment' },
+          },
+        },
+        end: {
+          entry: 'flush',
+          type: 'final',
+        },
+      },
     },
-    () => ({
-      containingChildrenLastDepth: -1,
-      stack: [],
-      indentString: buildIndentString(),
-      rawStack: [],
-    })
-  );
+    {
+      actions: {
+        writeXmlDeclaration: (__, event) => writeXmlDeclaration(event.param),
+        enterElement: (ctx, event) => {
+          if (event.type === 'START_ELEMENT') {
+            const tagName = event.param
+            indent(ctx)
+            ctx.hasBody = false
+            ctx.containingChildrenLastDepth = ctx.stack.length - 1
+            ctx.stack.push(tagName)
+            writeXmlFragment('elementStart', tagName)
+          } else {
+            ctx.hasBody = true
+          }
+          return ctx
+        },
+        exitElement: (ctx, event) => {
+          if (event.type === 'START_ELEMENT' && !ctx.hasBody) {
+            writeXmlFragment('attributesEnd')
+            return
+          }
+          if (event.type !== 'END_ELEMENT' && event.type !== 'END_DOCUMENT') return
+          if (ctx.hasBody) {
+            if (ctx.stack.length === 0) return ctx
+            const name = ctx.stack.pop()
+            if (ctx.stack.length === ctx.containingChildrenLastDepth) {
+              indent(ctx)
+            }
+            ctx.containingChildrenLastDepth = ctx.stack.length - 1
+            writeXmlFragment('elementEnd', name)
+          } else {
+            ctx.stack.pop()
+            writeXmlFragment('selfClosingEnd')
+          }
+          return ctx
+        },
+        writeAttributesEnd: () => writeXmlFragment('attributesEnd'),
+        enterAttribute: (__, { param }) => writeXmlFragment('attributeStart', param),
+        exitAttribute: () => writeXmlFragment('attributeEnd'),
+        enterBody: (ctx, event) => {
+          ctx.hasBody = true
+          if (event.type === 'TEXT') {
+            writeXmlFragment('text', escapeTextContent(event.param))
+          }
+          return ctx
+        },
+        enterComment: (ctx) => {
+          indent(ctx)
+          writeXmlFragment('commentStart')
+        },
+        leaveComment: () => writeXmlFragment('commentEnd'),
+        // TODO escape the comment
+        writeComment: (__, { param: comment }) => writeXmlFragment('text', comment),
+        writeAttributeText: (__, { param }) =>
+          writeXmlFragment('text', escapeAttributeContent(param)),
+        flush: (ctx) => {
+          while (ctx.stack.length) {
+            const name = ctx.stack.pop()
+            if (ctx.stack.length === ctx.containingChildrenLastDepth) {
+              indent(ctx)
+            }
+            ctx.containingChildrenLastDepth = ctx.stack.length - 1
+            writeXmlFragment('elementEnd', name)
+          }
+          return ctx
+        },
+      },
+    },
+  )
 }
