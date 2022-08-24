@@ -1,23 +1,23 @@
-import resolve from "@rollup/plugin-node-resolve";
-import commonjs from "@rollup/plugin-commonjs";
-import typescript from "rollup-plugin-typescript2";
-import { terser } from "rollup-plugin-terser";
+import resolve from '@rollup/plugin-node-resolve'
+import commonjs from '@rollup/plugin-commonjs'
+import typescript from 'rollup-plugin-typescript2'
+import { terser } from 'rollup-plugin-terser'
 import dts from 'rollup-plugin-dts'
 
-const packageJson = require("./package.json");
+const packageJson = require('./package.json')
 
 export default [
   {
-    input: "src/XmlWriter.ts",
+    input: 'src/XmlWriter.ts',
     output: [
       {
         file: packageJson.main,
-        format: "cjs",
+        format: 'cjs',
         sourcemap: true,
       },
       {
         file: packageJson.module,
-        format: "esm",
+        format: 'esm',
         sourcemap: true,
       },
     ],
@@ -25,7 +25,7 @@ export default [
       resolve(),
       commonjs(),
       typescript({
-        tsconfig: "./tsconfig.json",
+        tsconfig: './tsconfig.json',
       }),
       terser(),
     ],
@@ -36,4 +36,4 @@ export default [
     plugins: [dts()],
     external: [/\.(css|woff2|woff|ttf|svg)$/],
   },
-];
+]

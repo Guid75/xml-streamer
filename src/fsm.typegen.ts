@@ -25,6 +25,7 @@ export interface Typegen0 {
       | 'END_ELEMENT'
       | 'START_COMMENT'
       | 'START_ELEMENT'
+      | 'TEXT'
       | 'xstate.stop'
     exitElement: 'END_DOCUMENT' | 'END_ELEMENT' | 'START_ELEMENT' | 'xstate.stop'
     flush: 'END_DOCUMENT'

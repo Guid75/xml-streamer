@@ -1,6 +1,6 @@
 {
   "name": "xml-writer-ts",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "description": "A typescript XML writer",
   "main": "dist/cjs/index.cjs",
   "module": "dist/esm/index.mjs",
@@ -12,8 +12,8 @@
   "scripts": {
     "test": "npm run test:lint && npm run test:unit",
     "test:lint": "eslint \"src/**/*.ts\"",
-    "test:unit": "NODE_OPTIONS=\"--experimental-vm-modules --no-warnings\" jest",
-    "build": "rollup -c",
+    "test:unit": "npm run fsm > /dev/null 2>&1 && NODE_OPTIONS=\"--experimental-vm-modules --no-warnings\" jest",
+    "build": "npm run fsm && rollup -c",
     "check-types": "tsc --noemit",
     "fsm": "xstate typegen src/fsm.ts"
   },
