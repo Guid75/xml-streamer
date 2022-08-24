@@ -43,6 +43,8 @@ type Event =
   | GenericEvent<'END_ATTRIBUTE'>
   | GenericEvent<'START_COMMENT'>
   | GenericEvent<'END_COMMENT'>
+  | GenericEvent<'START_CDATA'>
+  | GenericEvent<'END_CDATA'>
   | GenericParamEvent<'TEXT'>
 
 const DEFAULT_INDENTATION = '    '
@@ -68,6 +70,8 @@ const xmlFragments = {
   selfClosingEnd: '/>',
   commentStart: '<!--',
   commentEnd: '-->',
+  cdataStart: '<![CDATA[',
+  cdataEnd: ']]>',
 } as const
 
 type FragmentName = keyof typeof xmlFragments
@@ -141,6 +145,7 @@ export function createFsm(writer: Writer, indentation?: boolean | string) {
           on: {
             START_DOCUMENT: { actions: 'writeXmlDeclaration', target: 'root' },
             START_ELEMENT: 'element',
+            START_CDATA: 'cdata',
             START_COMMENT: 'comment',
           },
         },
@@ -148,6 +153,7 @@ export function createFsm(writer: Writer, indentation?: boolean | string) {
           on: {
             START_ELEMENT: 'element',
             START_COMMENT: 'comment',
+            START_CDATA: 'cdata',
             END_DOCUMENT: 'end',
           },
         },
@@ -182,6 +188,7 @@ export function createFsm(writer: Writer, indentation?: boolean | string) {
               on: {
                 END_ATTRIBUTES: { actions: 'writeAttributesEnd', target: 'body' },
                 START_COMMENT: { actions: 'writeAttributesEnd', target: 'comment' },
+                START_CDATA: { actions: 'writeAttributesEnd', target: 'cdata' },
                 TEXT: { actions: 'writeAttributesEnd', target: 'body' },
               },
             },
@@ -190,6 +197,7 @@ export function createFsm(writer: Writer, indentation?: boolean | string) {
               on: {
                 TEXT: 'body',
                 START_COMMENT: 'comment',
+                START_CDATA: 'cdata',
               },
             },
             comment: {
@@ -199,6 +207,13 @@ export function createFsm(writer: Writer, indentation?: boolean | string) {
                 TEXT: { actions: 'writeComment' },
               },
             },
+            cdata: {
+              entry: 'enterCData',
+              on: {
+                END_CDATA: { actions: 'leaveCData', target: 'body' },
+                TEXT: { actions: 'writeCData' },
+              },
+            },
           },
         },
         comment: {
@@ -206,6 +221,13 @@ export function createFsm(writer: Writer, indentation?: boolean | string) {
           on: {
             END_COMMENT: { actions: 'leaveComment', target: 'root' },
             TEXT: { actions: 'writeComment' },
+          },
+        },
+        cdata: {
+          entry: 'enterCData',
+          on: {
+            END_CDATA: { actions: 'leaveCData', target: 'root' },
+            TEXT: { actions: 'writeCData' },
           },
         },
         end: {
@@ -250,7 +272,7 @@ export function createFsm(writer: Writer, indentation?: boolean | string) {
           }
           return ctx
         },
-        writeAttributesEnd: () => writeXmlFragment('attributesEnd'),
+        writeAttributesEnd: (__) => writeXmlFragment('attributesEnd'),
         enterAttribute: (__, { param }) => writeXmlFragment('attributeStart', param),
         exitAttribute: () => writeXmlFragment('attributeEnd'),
         enterBody: (ctx, event) => {
@@ -267,14 +289,18 @@ export function createFsm(writer: Writer, indentation?: boolean | string) {
         leaveComment: () => writeXmlFragment('commentEnd'),
         // TODO escape the comment
         writeComment: (__, { param: comment }) => writeXmlFragment('text', comment),
+        enterCData: (ctx) => {
+          indent(ctx)
+          writeXmlFragment('cdataStart')
+        },
+        leaveCData: () => writeXmlFragment('cdataEnd'),
+        writeCData: (__, { param: cdata }) => writeXmlFragment('text', cdata),
         writeAttributeText: (__, { param }) =>
           writeXmlFragment('text', escapeAttributeContent(param)),
         flush: (ctx) => {
           while (ctx.stack.length) {
             const name = ctx.stack.pop()
-            if (ctx.stack.length === ctx.containingChildrenLastDepth) {
-              indent(ctx)
-            }
+            if (ctx.stack.length === ctx.containingChildrenLastDepth) indent(ctx)
             ctx.containingChildrenLastDepth = ctx.stack.length - 1
             writeXmlFragment('elementEnd', name)
           }

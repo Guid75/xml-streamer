@@ -82,6 +82,20 @@ export class XmlWriter {
     return this
   }
 
+  writeCData(content: string) {
+    return this.startCData().text(content).endCData()
+  }
+
+  startCData() {
+    this.#fsm.send({ type: 'START_CDATA' })
+    return this
+  }
+
+  endCData() {
+    this.#fsm.send({ type: 'END_CDATA' })
+    return this
+  }
+
   toString(): string {
     this.#fsm.send('END_DOCUMENT')
     return this.#output

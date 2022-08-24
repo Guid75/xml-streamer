@@ -64,5 +64,9 @@ function writeComment(content: string) {}
 function startComment() {}
 function endComment() {}
 
+function writeCData(content: string) {}
+function startCData() {}
+function endCData() {}
+
 function text(content: string) {}
 ```
